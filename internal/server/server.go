@@ -1,4 +1,4 @@
-// Package server wires routes, middlewares, and handlers into an HTTP server.
+// Package server wires routes, middlewares, and handlers into an HTTP server
 package server
 
 import (
@@ -12,35 +12,35 @@ import (
 	"github.com/bissquit/gophkeeper/internal/handler"
 	"github.com/bissquit/gophkeeper/internal/logging"
 	"github.com/bissquit/gophkeeper/internal/repository"
+	"github.com/bissquit/gophkeeper/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Server bundles the chi router with the dependencies it needs at request time.
+// Server bundles the chi router with the dependencies it needs at request time
 type Server struct {
-	config  *config.Config
-	storage repository.Repository
-	router  *chi.Mux
-	db      *pgxpool.Pool
-	logger  *slog.Logger
+	router *chi.Mux
+	db     *pgxpool.Pool
+	logger *slog.Logger
 }
 
-// NewServer constructs a Server and registers all routes.
+// NewServer constructs a Server and registers all routes
 func NewServer(cfg *config.Config, storage repository.Repository, db *pgxpool.Pool, logger *slog.Logger) *Server {
 	s := &Server{
-		config:  cfg,
-		storage: storage,
-		router:  chi.NewRouter(),
-		db:      db,
-		logger:  logger,
+		router: chi.NewRouter(),
+		db:     db,
+		logger: logger,
 	}
-	s.setupRoutes()
+	s.setupRoutes(cfg, storage)
 	return s
 }
 
-func (s *Server) setupRoutes() {
-	secret := []byte(s.config.JWTSecret)
-	h := handler.NewHandlers(s.storage, s.logger, secret)
+func (s *Server) setupRoutes(cfg *config.Config, storage repository.Repository) {
+	secret := []byte(cfg.JWTSecret)
+
+	authSvc := service.NewAuth(storage, secret)
+	secretsSvc := service.NewSecrets(storage)
+	h := handler.NewHandlers(authSvc, secretsSvc, s.logger)
 
 	s.router.Use(logging.Logger(s.logger))
 
@@ -51,10 +51,13 @@ func (s *Server) setupRoutes() {
 	s.router.Group(func(r chi.Router) {
 		r.Use(jwt.JWT(secret))
 		r.Get("/api/secrets", h.ListSecrets)
+		r.Post("/api/secrets", h.CreateSecret)
+		r.Put("/api/secrets/{id}", h.UpdateSecret)
+		r.Delete("/api/secrets/{id}", h.DeleteSecret)
 	})
 }
 
-// Ping is a liveness/readiness probe that also verifies DB connectivity.
+// Ping is a liveness/readiness probe that also verifies DB connectivity
 func (s *Server) Ping(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 	defer cancel()
@@ -67,8 +70,7 @@ func (s *Server) Ping(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// Handler exposes the configured chi router so the caller can wrap it in
-// http.Server with custom timeouts.
+// Handler exposes the configured chi router
 func (s *Server) Handler() http.Handler {
 	return s.router
 }
