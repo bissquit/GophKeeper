@@ -6,15 +6,17 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS secrets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    secret_item_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID NOT NULL,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR(32) NOT NULL,
     name VARCHAR(255) NOT NULL,
     data BYTEA NOT NULL,
     meta TEXT NOT NULL DEFAULT '',
-    version BIGINT NOT NULL DEFAULT 1,
+    version BIGINT NOT NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    UNIQUE (user_id, name)
+    UNIQUE (id, version)
 );
 
 CREATE INDEX idx_secrets_user_id ON secrets(user_id);
+CREATE INDEX idx_secrets_id ON secrets(id);
