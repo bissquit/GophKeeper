@@ -35,20 +35,34 @@ const (
 	SecretTypeCard SecretType = "card"
 )
 
-// Secret is a persisted user secret
+// Secret is one row of the append-only secrets table — a single version of a logical secret
 type Secret struct {
-	ID        string
-	UserID    string
-	Type      SecretType
-	Name      string
-	Data      []byte
-	Meta      string
-	Version   int64
-	UpdatedAt time.Time
+	SecretItemID string
+	ID           string
+	UserID       string
+	Type         SecretType
+	Name         string
+	Data         []byte
+	Meta         string
+	Version      int64
+	UpdatedAt    time.Time
+}
+
+// NewSecret is the data required to create the first version of a secret
+type NewSecret struct {
+	Type SecretType
+	Name string
+	Data []byte
+	Meta string
 }
 
 // Repository is the contract that any concrete storage backend must satisfy
 type Repository interface {
 	CreateUser(login, passwordHash string) (userID string, err error)
 	GetUserByLogin(login string) (user User, err error)
+
+	CreateSecret(userID string, in NewSecret) (secret Secret, err error)
+	AppendSecretVersion(userID, id string, data []byte, meta string) (secret Secret, err error)
+	ListSecrets(userID string) ([]Secret, error)
+	DeleteSecret(userID, id string) error
 }
