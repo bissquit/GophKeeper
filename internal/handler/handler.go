@@ -2,23 +2,24 @@
 package handler
 
 import (
+	"encoding/json"
 	"log/slog"
 	"mime"
 	"net/http"
 
-	"github.com/bissquit/gophkeeper/internal/repository"
+	"github.com/bissquit/gophkeeper/internal/service"
 )
 
-// Handlers carries the dependencies shared by every HTTP handler method
+// Handlers carries the dependencies shared by every HTTP handler method.
 type Handlers struct {
-	storage   repository.Repository
-	logger    *slog.Logger
-	jwtSecret []byte
+	auth    *service.Auth
+	secrets *service.Secrets
+	logger  *slog.Logger
 }
 
-// NewHandlers builds a Handlers value with the given dependencies
-func NewHandlers(storage repository.Repository, logger *slog.Logger, jwtSecret []byte) *Handlers {
-	return &Handlers{storage: storage, logger: logger, jwtSecret: jwtSecret}
+// NewHandlers builds a Handlers value with the given service dependencies.
+func NewHandlers(auth *service.Auth, secrets *service.Secrets, logger *slog.Logger) *Handlers {
+	return &Handlers{auth: auth, secrets: secrets, logger: logger}
 }
 
 func (h *Handlers) validateContentTypeJSON(w http.ResponseWriter, r *http.Request) bool {
@@ -28,4 +29,10 @@ func (h *Handlers) validateContentTypeJSON(w http.ResponseWriter, r *http.Reques
 		return false
 	}
 	return true
+}
+
+func writeJSON(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(body)
 }

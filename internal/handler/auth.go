@@ -5,9 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/bissquit/gophkeeper/internal/auth/jwt"
-	"github.com/bissquit/gophkeeper/internal/password"
-	"github.com/bissquit/gophkeeper/internal/repository"
+	"github.com/bissquit/gophkeeper/internal/service"
 )
 
 type userRequest struct {
@@ -15,8 +13,7 @@ type userRequest struct {
 	Password string `json:"password"`
 }
 
-// Register creates a new user from a JSON {login, password} body and returns
-// a freshly issued JWT in both the response body and Authorization header
+// Register creates a new user from a JSON {login, password} body and returns JWT
 func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	if !h.validateContentTypeJSON(w, r) {
@@ -28,33 +25,16 @@ func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	if req.Login == "" || req.Password == "" {
-		http.Error(w, "login and password required", http.StatusBadRequest)
-		return
-	}
 
-	hash, err := password.Hash(req.Password)
+	token, err := h.auth.Register(req.Login, req.Password)
 	if err != nil {
-		h.logger.Error("hash password", "err", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		h.writeAuthError(w, "register", err)
 		return
 	}
-
-	userID, err := h.storage.CreateUser(req.Login, hash)
-	if err != nil {
-		if errors.Is(err, repository.ErrUserAlreadyExists) {
-			http.Error(w, "login taken", http.StatusConflict)
-			return
-		}
-		h.logger.Error("create user", "err", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	h.issueToken(w, userID, req.Login)
+	writeToken(w, token)
 }
 
-// Login authenticates a user against the stored bcrypt hash and returns a JWT
+// Login authenticates a user against the stored bcrypt hash and returns JWT
 func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	if !h.validateContentTypeJSON(w, r) {
@@ -66,40 +46,30 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	if req.Login == "" || req.Password == "" {
-		http.Error(w, "login and password required", http.StatusBadRequest)
-		return
-	}
 
-	u, err := h.storage.GetUserByLogin(req.Login)
+	token, err := h.auth.Login(req.Login, req.Password)
 	if err != nil {
-		if errors.Is(err, repository.ErrUserNotFound) {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-			return
-		}
-		h.logger.Error("get user", "err", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		h.writeAuthError(w, "login", err)
 		return
 	}
-
-	if !password.CheckHash(req.Password, u.PasswordHash) {
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		return
-	}
-
-	h.issueToken(w, u.ID, u.Login)
+	writeToken(w, token)
 }
 
-func (h *Handlers) issueToken(w http.ResponseWriter, userID, login string) {
-	token, err := jwt.GenerateToken(userID, login, h.jwtSecret)
-	if err != nil {
+func (h *Handlers) writeAuthError(w http.ResponseWriter, op string, err error) {
+	switch {
+	case errors.Is(err, service.ErrInvalidInput):
+		http.Error(w, "login and password required", http.StatusBadRequest)
+	case errors.Is(err, service.ErrLoginTaken):
+		http.Error(w, "login taken", http.StatusConflict)
+	case errors.Is(err, service.ErrInvalidCredentials):
+		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+	default:
+		h.logger.Error(op, "err", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
 	}
+}
 
+func writeToken(w http.ResponseWriter, token string) {
 	w.Header().Set("Authorization", "Bearer "+token)
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{"token": token}); err != nil {
-		h.logger.Error("encode token", "err", err)
-	}
+	writeJSON(w, http.StatusOK, map[string]string{"token": token})
 }
