@@ -6,6 +6,8 @@ import (
 	"github.com/bissquit/gophkeeper/internal/repository"
 )
 
+// ErrInvalidSecretType is returned by Secrets.Create when the requested
+// type is not one of the supported secret kinds.
 var ErrInvalidSecretType = errors.New("invalid secret type")
 
 // Secrets implements CRUD over the versioned secret store
