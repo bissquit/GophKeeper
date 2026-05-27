@@ -39,7 +39,6 @@ func GetConfig() *Config {
 
 	flag.StringVar(&cfg.ServerAddr, "a", cfg.ServerAddr, "server address in host:port format")
 	flag.StringVar(&cfg.DSN, "d", cfg.DSN, "PostgreSQL DSN")
-	flag.StringVar(&cfg.JWTSecret, "s", cfg.JWTSecret, "JWT signing secret")
 	flag.Parse()
 
 	return cfg
