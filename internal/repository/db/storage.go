@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/bissquit/gophkeeper/internal/repository"
@@ -17,13 +16,12 @@ import (
 
 // PGStorage implements repository.Repository against PostgreSQL
 type PGStorage struct {
-	pool   *pgxpool.Pool
-	logger *slog.Logger
+	pool *pgxpool.Pool
 }
 
 // NewDBStorage returns PGStorage object
-func NewDBStorage(p *pgxpool.Pool, l *slog.Logger) *PGStorage {
-	return &PGStorage{pool: p, logger: l}
+func NewDBStorage(p *pgxpool.Pool) *PGStorage {
+	return &PGStorage{pool: p}
 }
 
 // CreateUser inserts a new user and returns its UUID
@@ -45,7 +43,6 @@ func (s *PGStorage) CreateUser(ctx context.Context, login, passwordHash string) 
 		return "", fmt.Errorf("%w: %s", repository.ErrUserAlreadyExists, login)
 	}
 
-	s.logger.Error("create user error", "err", err)
 	return "", err
 }
 
@@ -68,7 +65,6 @@ func (s *PGStorage) GetUserByLogin(ctx context.Context, login string) (repositor
 		return repository.User{}, repository.ErrUserNotFound
 	}
 
-	s.logger.Error("get user by login error", "err", err, "login", login)
 	return repository.User{}, err
 }
 
@@ -93,7 +89,6 @@ func (s *PGStorage) CreateSecret(ctx context.Context, userID string, in reposito
 		userID, string(in.Type), in.Name, in.Data, in.Meta,
 	).Scan(&out.SecretItemID, &out.ID, &out.UpdatedAt)
 	if err != nil {
-		s.logger.Error("create secret error", "err", err)
 		return repository.Secret{}, err
 	}
 	return out, nil
@@ -119,7 +114,6 @@ func (s *PGStorage) AppendSecretVersion(ctx context.Context, userID, id string, 
 		if errors.Is(err, pgx.ErrNoRows) {
 			return repository.Secret{}, repository.ErrSecretNotFound
 		}
-		s.logger.Error("append version error", "err", err)
 		return repository.Secret{}, err
 	}
 	out.Type = repository.SecretType(t)
@@ -138,7 +132,6 @@ func (s *PGStorage) ListSecrets(ctx context.Context, userID string) ([]repositor
 		userID,
 	)
 	if err != nil {
-		s.logger.Error("list secrets error", "err", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -167,7 +160,6 @@ func (s *PGStorage) DeleteSecret(ctx context.Context, userID, id string) error {
 		id, userID,
 	)
 	if err != nil {
-		s.logger.Error("delete secret error", "err", err)
 		return err
 	}
 	if tag.RowsAffected() == 0 {
