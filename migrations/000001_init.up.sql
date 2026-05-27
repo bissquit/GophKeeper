@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS secrets (
     type VARCHAR(32) NOT NULL,
     name VARCHAR(255) NOT NULL,
     data BYTEA NOT NULL,
-    meta TEXT NOT NULL DEFAULT '',
+    meta VARCHAR(4096) NOT NULL DEFAULT '',
     version BIGINT NOT NULL,
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     UNIQUE (id, version)
