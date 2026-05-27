@@ -2,23 +2,38 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"mime"
 	"net/http"
 
-	"github.com/bissquit/gophkeeper/internal/service"
+	"github.com/bissquit/gophkeeper/internal/repository"
 )
+
+// authService is the subset of behavior handler needs from the auth service
+type authService interface {
+	Register(ctx context.Context, login, plainPassword string) (token string, err error)
+	Login(ctx context.Context, login, plainPassword string) (token string, err error)
+}
+
+// secretsService is the subset of behavior handler needs from the secrets service
+type secretsService interface {
+	Create(ctx context.Context, userID string, in repository.NewSecret) (repository.Secret, error)
+	Update(ctx context.Context, userID, id string, data []byte, meta string) (repository.Secret, error)
+	List(ctx context.Context, userID string) ([]repository.Secret, error)
+	Delete(ctx context.Context, userID, id string) error
+}
 
 // Handlers carries the dependencies shared by every HTTP handler method.
 type Handlers struct {
-	auth    *service.Auth
-	secrets *service.Secrets
+	auth    authService
+	secrets secretsService
 	logger  *slog.Logger
 }
 
 // NewHandlers builds a Handlers value with the given service dependencies.
-func NewHandlers(auth *service.Auth, secrets *service.Secrets, logger *slog.Logger) *Handlers {
+func NewHandlers(auth authService, secrets secretsService, logger *slog.Logger) *Handlers {
 	return &Handlers{auth: auth, secrets: secrets, logger: logger}
 }
 
