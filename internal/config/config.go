@@ -3,9 +3,13 @@
 package config
 
 import (
+	"errors"
 	"flag"
 	"os"
 )
+
+// ErrMissingJWTSecret signals that JWT_SECRET was not provided
+var ErrMissingJWTSecret = errors.New("JWT_SECRET is required")
 
 // Config holds the parameters required to run the GophKeeper server
 type Config struct {
@@ -19,12 +23,12 @@ func GetDefaultConfig() *Config {
 	return &Config{
 		ServerAddr: ":8080",
 		DSN:        "",
-		JWTSecret:  "dev-secret-change-me-please-32+chars",
+		JWTSecret:  "", // required by default
 	}
 }
 
 // GetConfig builds a Config by layering env vars and flags over the defaults
-func GetConfig() *Config {
+func GetConfig() (*Config, error) {
 	cfg := GetDefaultConfig()
 
 	if v, ok := os.LookupEnv("RUN_ADDRESS"); ok {
@@ -41,5 +45,8 @@ func GetConfig() *Config {
 	flag.StringVar(&cfg.DSN, "d", cfg.DSN, "PostgreSQL DSN")
 	flag.Parse()
 
-	return cfg
+	if cfg.JWTSecret == "" {
+		return nil, ErrMissingJWTSecret
+	}
+	return cfg, nil
 }

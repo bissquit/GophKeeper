@@ -19,9 +19,13 @@ import (
 )
 
 func main() {
-	cfg := config.GetConfig()
-
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	cfg, err := config.GetConfig()
+	if err != nil {
+		logger.Error("config error", "err", err)
+		os.Exit(1)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
