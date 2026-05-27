@@ -27,13 +27,13 @@ func GetDefaultConfig() *Config {
 func GetConfig() *Config {
 	cfg := GetDefaultConfig()
 
-	if v := os.Getenv("RUN_ADDRESS"); v != "" {
+	if v, ok := os.LookupEnv("RUN_ADDRESS"); ok {
 		cfg.ServerAddr = v
 	}
-	if v := os.Getenv("DATABASE_URI"); v != "" {
+	if v, ok := os.LookupEnv("DATABASE_URI"); ok {
 		cfg.DSN = v
 	}
-	if v := os.Getenv("JWT_SECRET"); v != "" {
+	if v, ok := os.LookupEnv("JWT_SECRET"); ok {
 		cfg.JWTSecret = v
 	}
 
