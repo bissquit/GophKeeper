@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -26,7 +27,7 @@ func (r *fakeRepo) nextID(prefix string) string {
 	return fmt.Sprintf("%s-%d", prefix, r.next)
 }
 
-func (r *fakeRepo) CreateUser(login, passwordHash string) (string, error) {
+func (r *fakeRepo) CreateUser(_ context.Context, login, passwordHash string) (string, error) {
 	if _, ok := r.users[login]; ok {
 		return "", repository.ErrUserAlreadyExists
 	}
@@ -35,7 +36,7 @@ func (r *fakeRepo) CreateUser(login, passwordHash string) (string, error) {
 	return id, nil
 }
 
-func (r *fakeRepo) GetUserByLogin(login string) (repository.User, error) {
+func (r *fakeRepo) GetUserByLogin(_ context.Context, login string) (repository.User, error) {
 	u, ok := r.users[login]
 	if !ok {
 		return repository.User{}, repository.ErrUserNotFound
@@ -43,7 +44,7 @@ func (r *fakeRepo) GetUserByLogin(login string) (repository.User, error) {
 	return u, nil
 }
 
-func (r *fakeRepo) CreateSecret(userID string, in repository.NewSecret) (repository.Secret, error) {
+func (r *fakeRepo) CreateSecret(_ context.Context, userID string, in repository.NewSecret) (repository.Secret, error) {
 	sec := repository.Secret{
 		SecretItemID: r.nextID("item"),
 		ID:           r.nextID("sec"),
@@ -59,7 +60,7 @@ func (r *fakeRepo) CreateSecret(userID string, in repository.NewSecret) (reposit
 	return sec, nil
 }
 
-func (r *fakeRepo) AppendSecretVersion(userID, id string, data []byte, meta string) (repository.Secret, error) {
+func (r *fakeRepo) AppendSecretVersion(_ context.Context, userID, id string, data []byte, meta string) (repository.Secret, error) {
 	var latest *repository.Secret
 	for i := range r.secrets[userID] {
 		s := &r.secrets[userID][i]
@@ -85,11 +86,11 @@ func (r *fakeRepo) AppendSecretVersion(userID, id string, data []byte, meta stri
 	return sec, nil
 }
 
-func (r *fakeRepo) ListSecrets(userID string) ([]repository.Secret, error) {
+func (r *fakeRepo) ListSecrets(_ context.Context, userID string) ([]repository.Secret, error) {
 	return r.secrets[userID], nil
 }
 
-func (r *fakeRepo) DeleteSecret(userID, id string) error {
+func (r *fakeRepo) DeleteSecret(_ context.Context, userID, id string) error {
 	out := r.secrets[userID][:0]
 	found := false
 	for _, s := range r.secrets[userID] {

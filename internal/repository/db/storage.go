@@ -27,8 +27,8 @@ func NewDBStorage(p *pgxpool.Pool, l *slog.Logger) *PGStorage {
 }
 
 // CreateUser inserts a new user and returns its UUID
-func (s *PGStorage) CreateUser(login, passwordHash string) (userID string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (s *PGStorage) CreateUser(ctx context.Context, login, passwordHash string) (userID string, err error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	err = s.pool.QueryRow(ctx,
@@ -50,8 +50,8 @@ func (s *PGStorage) CreateUser(login, passwordHash string) (userID string, err e
 }
 
 // GetUserByLogin returns the user record matching login, or ErrUserNotFound
-func (s *PGStorage) GetUserByLogin(login string) (repository.User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (s *PGStorage) GetUserByLogin(ctx context.Context, login string) (repository.User, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	var u repository.User
@@ -73,8 +73,8 @@ func (s *PGStorage) GetUserByLogin(login string) (repository.User, error) {
 }
 
 // CreateSecret inserts the first version (version=1) of a new logical secret
-func (s *PGStorage) CreateSecret(userID string, in repository.NewSecret) (repository.Secret, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (s *PGStorage) CreateSecret(ctx context.Context, userID string, in repository.NewSecret) (repository.Secret, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	out := repository.Secret{
@@ -99,12 +99,9 @@ func (s *PGStorage) CreateSecret(userID string, in repository.NewSecret) (reposi
 	return out, nil
 }
 
-// AppendSecretVersion inserts a new version row for an existing logical secret.
-// Returns ErrSecretNotFound when no rows match (id, user_id).
-// The UNIQUE(id, version) constraint defends against concurrent appends;
-// the losing append will fail with a unique violation surfaced as a generic error.
-func (s *PGStorage) AppendSecretVersion(userID, id string, data []byte, meta string) (repository.Secret, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+// AppendSecretVersion inserts a new version row for an existing logical secret
+func (s *PGStorage) AppendSecretVersion(ctx context.Context, userID, id string, data []byte, meta string) (repository.Secret, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	out := repository.Secret{ID: id, UserID: userID, Data: data, Meta: meta}
@@ -130,8 +127,8 @@ func (s *PGStorage) AppendSecretVersion(userID, id string, data []byte, meta str
 }
 
 // ListSecrets returns every row owned by userID — all versions of all secrets
-func (s *PGStorage) ListSecrets(userID string) ([]repository.Secret, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (s *PGStorage) ListSecrets(ctx context.Context, userID string) ([]repository.Secret, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	rows, err := s.pool.Query(ctx,
@@ -161,8 +158,8 @@ func (s *PGStorage) ListSecrets(userID string) ([]repository.Secret, error) {
 }
 
 // DeleteSecret removes every version of the logical secret id owned by userID
-func (s *PGStorage) DeleteSecret(userID, id string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (s *PGStorage) DeleteSecret(ctx context.Context, userID, id string) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	tag, err := s.pool.Exec(ctx,

@@ -26,7 +26,7 @@ func (h *Handlers) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.auth.Register(req.Login, req.Password)
+	token, err := h.auth.Register(r.Context(), req.Login, req.Password)
 	if err != nil {
 		h.writeAuthError(w, "register", err)
 		return
@@ -47,7 +47,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.auth.Login(req.Login, req.Password)
+	token, err := h.auth.Login(r.Context(), req.Login, req.Password)
 	if err != nil {
 		h.writeAuthError(w, "login", err)
 		return

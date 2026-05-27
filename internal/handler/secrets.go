@@ -62,7 +62,7 @@ func (h *Handlers) CreateSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sec, err := h.secrets.Create(userIDFrom(r), repository.NewSecret{
+	sec, err := h.secrets.Create(r.Context(), userIDFrom(r), repository.NewSecret{
 		Type: repository.SecretType(in.Type),
 		Name: in.Name,
 		Data: data,
@@ -96,7 +96,7 @@ func (h *Handlers) UpdateSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sec, err := h.secrets.Update(userIDFrom(r), id, data, in.Meta)
+	sec, err := h.secrets.Update(r.Context(), userIDFrom(r), id, data, in.Meta)
 	if err != nil {
 		h.writeSecretError(w, "update secret", err)
 		return
@@ -107,7 +107,7 @@ func (h *Handlers) UpdateSecret(w http.ResponseWriter, r *http.Request) {
 
 // ListSecrets returns every row (every version of every secret) for the caller
 func (h *Handlers) ListSecrets(w http.ResponseWriter, r *http.Request) {
-	items, err := h.secrets.List(userIDFrom(r))
+	items, err := h.secrets.List(r.Context(), userIDFrom(r))
 	if err != nil {
 		h.writeSecretError(w, "list secrets", err)
 		return
@@ -123,7 +123,7 @@ func (h *Handlers) ListSecrets(w http.ResponseWriter, r *http.Request) {
 // DeleteSecret removes every version of the given logical secret
 func (h *Handlers) DeleteSecret(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	if err := h.secrets.Delete(userIDFrom(r), id); err != nil {
+	if err := h.secrets.Delete(r.Context(), userIDFrom(r), id); err != nil {
 		h.writeSecretError(w, "delete secret", err)
 		return
 	}

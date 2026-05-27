@@ -2,6 +2,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 
 	"github.com/bissquit/gophkeeper/internal/auth/jwt"
@@ -30,7 +31,7 @@ func NewAuth(repo repository.Repository, jwtSecret []byte) *Auth {
 }
 
 // Register creates a new user with a bcrypt-hashed password and returns JWT
-func (a *Auth) Register(login, plainPassword string) (token string, err error) {
+func (a *Auth) Register(ctx context.Context, login, plainPassword string) (token string, err error) {
 	if login == "" || plainPassword == "" {
 		return "", ErrInvalidInput
 	}
@@ -40,7 +41,7 @@ func (a *Auth) Register(login, plainPassword string) (token string, err error) {
 		return "", err
 	}
 
-	userID, err := a.repo.CreateUser(login, hash)
+	userID, err := a.repo.CreateUser(ctx, login, hash)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserAlreadyExists) {
 			return "", ErrLoginTaken
@@ -52,12 +53,12 @@ func (a *Auth) Register(login, plainPassword string) (token string, err error) {
 }
 
 // Login verifies the credentials and returns JWT
-func (a *Auth) Login(login, plainPassword string) (token string, err error) {
+func (a *Auth) Login(ctx context.Context, login, plainPassword string) (token string, err error) {
 	if login == "" || plainPassword == "" {
 		return "", ErrInvalidInput
 	}
 
-	u, err := a.repo.GetUserByLogin(login)
+	u, err := a.repo.GetUserByLogin(ctx, login)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
 			return "", ErrInvalidCredentials

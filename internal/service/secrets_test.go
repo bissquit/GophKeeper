@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -8,9 +9,10 @@ import (
 )
 
 func TestSecrets_CreateAndList(t *testing.T) {
+	ctx := context.Background()
 	s := NewSecrets(newFakeRepo())
 
-	sec, err := s.Create("u1", repository.NewSecret{
+	sec, err := s.Create(ctx, "u1", repository.NewSecret{
 		Type: repository.SecretTypeText,
 		Name: "note",
 		Data: []byte("hello"),
@@ -23,7 +25,7 @@ func TestSecrets_CreateAndList(t *testing.T) {
 		t.Fatalf("unexpected secret: %+v", sec)
 	}
 
-	items, err := s.List("u1")
+	items, err := s.List(ctx, "u1")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -35,21 +37,22 @@ func TestSecrets_CreateAndList(t *testing.T) {
 func TestSecrets_CreateInvalidType(t *testing.T) {
 	s := NewSecrets(newFakeRepo())
 
-	_, err := s.Create("u1", repository.NewSecret{Type: "bogus", Name: "x"})
+	_, err := s.Create(context.Background(), "u1", repository.NewSecret{Type: "bogus", Name: "x"})
 	if !errors.Is(err, ErrInvalidSecretType) {
 		t.Fatalf("expected ErrInvalidSecretType, got %v", err)
 	}
 }
 
 func TestSecrets_UpdateAppendsVersion(t *testing.T) {
+	ctx := context.Background()
 	s := NewSecrets(newFakeRepo())
-	sec, _ := s.Create("u1", repository.NewSecret{
+	sec, _ := s.Create(ctx, "u1", repository.NewSecret{
 		Type: repository.SecretTypeText,
 		Name: "note",
 		Data: []byte("v1"),
 	})
 
-	updated, err := s.Update("u1", sec.ID, []byte("v2"), "second")
+	updated, err := s.Update(ctx, "u1", sec.ID, []byte("v2"), "second")
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
@@ -57,7 +60,7 @@ func TestSecrets_UpdateAppendsVersion(t *testing.T) {
 		t.Fatalf("unexpected updated: %+v", updated)
 	}
 
-	items, _ := s.List("u1")
+	items, _ := s.List(ctx, "u1")
 	if len(items) != 2 {
 		t.Fatalf("expected 2 versions, got %d", len(items))
 	}
@@ -65,30 +68,32 @@ func TestSecrets_UpdateAppendsVersion(t *testing.T) {
 
 func TestSecrets_UpdateNotFound(t *testing.T) {
 	s := NewSecrets(newFakeRepo())
-	_, err := s.Update("u1", "ghost-id", []byte("x"), "")
+	_, err := s.Update(context.Background(), "u1", "ghost-id", []byte("x"), "")
 	if !errors.Is(err, repository.ErrSecretNotFound) {
 		t.Fatalf("expected ErrSecretNotFound, got %v", err)
 	}
 }
 
 func TestSecrets_Delete(t *testing.T) {
+	ctx := context.Background()
 	s := NewSecrets(newFakeRepo())
-	sec, _ := s.Create("u1", repository.NewSecret{Type: repository.SecretTypeText, Name: "x"})
+	sec, _ := s.Create(ctx, "u1", repository.NewSecret{Type: repository.SecretTypeText, Name: "x"})
 
-	if err := s.Delete("u1", sec.ID); err != nil {
+	if err := s.Delete(ctx, "u1", sec.ID); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
-	if err := s.Delete("u1", sec.ID); !errors.Is(err, repository.ErrSecretNotFound) {
+	if err := s.Delete(ctx, "u1", sec.ID); !errors.Is(err, repository.ErrSecretNotFound) {
 		t.Fatalf("expected ErrSecretNotFound on second delete, got %v", err)
 	}
 }
 
 func TestSecrets_EmptyInput(t *testing.T) {
+	ctx := context.Background()
 	s := NewSecrets(newFakeRepo())
-	if _, err := s.Create("", repository.NewSecret{Type: repository.SecretTypeText, Name: "x"}); !errors.Is(err, ErrInvalidInput) {
+	if _, err := s.Create(ctx, "", repository.NewSecret{Type: repository.SecretTypeText, Name: "x"}); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("Create empty userID: %v", err)
 	}
-	if err := s.Delete("u1", ""); !errors.Is(err, ErrInvalidInput) {
+	if err := s.Delete(ctx, "u1", ""); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("Delete empty id: %v", err)
 	}
 }

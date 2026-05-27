@@ -1,6 +1,8 @@
+// Package repository defines storage-agnostic domain types and the contract
 package repository
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -58,11 +60,11 @@ type NewSecret struct {
 
 // Repository is the contract that any concrete storage backend must satisfy
 type Repository interface {
-	CreateUser(login, passwordHash string) (userID string, err error)
-	GetUserByLogin(login string) (user User, err error)
+	CreateUser(ctx context.Context, login, passwordHash string) (userID string, err error)
+	GetUserByLogin(ctx context.Context, login string) (user User, err error)
 
-	CreateSecret(userID string, in NewSecret) (secret Secret, err error)
-	AppendSecretVersion(userID, id string, data []byte, meta string) (secret Secret, err error)
-	ListSecrets(userID string) ([]Secret, error)
-	DeleteSecret(userID, id string) error
+	CreateSecret(ctx context.Context, userID string, in NewSecret) (secret Secret, err error)
+	AppendSecretVersion(ctx context.Context, userID, id string, data []byte, meta string) (secret Secret, err error)
+	ListSecrets(ctx context.Context, userID string) ([]Secret, error)
+	DeleteSecret(ctx context.Context, userID, id string) error
 }
