@@ -15,9 +15,31 @@ import (
 type contextKey string
 
 const (
-	UserIDKey contextKey = "user_id"
-	LoginKey  contextKey = "login"
+	userIDKey contextKey = "user_id"
+	loginKey  contextKey = "login"
 )
+
+// UserIDFromContext returns the authenticated user's id from ctx
+func UserIDFromContext(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(userIDKey).(string)
+	return id, ok
+}
+
+// LoginFromContext returns the authenticated user's login from ctx
+func LoginFromContext(ctx context.Context) (string, bool) {
+	login, ok := ctx.Value(loginKey).(string)
+	return login, ok
+}
+
+// ContextWithUserID returns a copy of ctx carrying the given user id
+func ContextWithUserID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, userIDKey, id)
+}
+
+// ContextWithLogin returns a copy of ctx carrying the given login
+func ContextWithLogin(ctx context.Context, login string) context.Context {
+	return context.WithValue(ctx, loginKey, login)
+}
 
 // Claims is the custom JWT claim payload, embedding standard registered claims
 type Claims struct {
@@ -83,8 +105,8 @@ func JWT(secret []byte) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), LoginKey, claims.Login)
-			ctx = context.WithValue(ctx, UserIDKey, claims.UserID)
+			ctx := ContextWithLogin(r.Context(), claims.Login)
+			ctx = ContextWithUserID(ctx, claims.UserID)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

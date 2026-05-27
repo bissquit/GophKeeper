@@ -32,7 +32,7 @@ func TestParseWithWrongSecret(t *testing.T) {
 
 func TestMiddleware(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		uid, _ := r.Context().Value(UserIDKey).(string)
+		uid, _ := UserIDFromContext(r.Context())
 		if uid != "u1" {
 			t.Errorf("user_id not in context: %q", uid)
 		}

@@ -39,7 +39,7 @@ func toDTO(s repository.Secret) secretDTO {
 }
 
 func userIDFrom(r *http.Request) string {
-	uid, _ := r.Context().Value(jwt.UserIDKey).(string)
+	uid, _ := jwt.UserIDFromContext(r.Context())
 	return uid
 }
 
