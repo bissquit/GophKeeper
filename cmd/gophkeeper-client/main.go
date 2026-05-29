@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -128,8 +129,17 @@ func cmdWhoami() error {
 }
 
 func readPassword() (string, error) {
+	fd := int(os.Stdin.Fd())
+	// don't disable echo if not tty (e.g. file or pipe)
+	if !term.IsTerminal(fd) {
+		s := bufio.NewScanner(os.Stdin)
+		if !s.Scan() {
+			return "", s.Err()
+		}
+		return s.Text(), nil
+	}
 	fmt.Print("Password: ")
-	b, err := term.ReadPassword(int(os.Stdin.Fd()))
+	b, err := term.ReadPassword(fd)
 	fmt.Println()
 	return string(b), err
 }
