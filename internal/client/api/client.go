@@ -52,33 +52,12 @@ func (c *Client) Login(ctx context.Context, login, plainPassword string) (string
 }
 
 func (c *Client) authCall(ctx context.Context, path, login, plainPassword string) (string, error) {
-	body, _ := json.Marshal(map[string]string{"login": login, "password": plainPassword})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+path, bytes.NewReader(body))
-	if err != nil {
+	in := map[string]string{"login": login, "password": plainPassword}
+	var out authResponse
+	if err := c.doJSON(ctx, http.MethodPost, path, in, &out); err != nil {
 		return "", err
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		var out authResponse
-		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-			return "", err
-		}
-		return out.Token, nil
-	case http.StatusConflict:
-		return "", ErrConflict
-	case http.StatusUnauthorized:
-		return "", ErrUnauthorized
-	default:
-		return "", unexpectedStatus(resp)
-	}
+	return out.Token, nil
 }
 
 // Ping checks server health (no auth)
@@ -101,4 +80,85 @@ func (c *Client) Ping(ctx context.Context) error {
 func unexpectedStatus(resp *http.Response) error {
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
 	return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, bytes.TrimSpace(b))
+}
+
+// Secret is the server-side representation of a stored secret version.
+// Data is automatically base64-encoded on the wire by encoding/json
+type Secret struct {
+	SecretItemID string    `json:"secret_item_id,omitempty"`
+	ID           string    `json:"id,omitempty"`
+	Type         string    `json:"type,omitempty"`
+	Name         string    `json:"name,omitempty"`
+	Data         []byte    `json:"data,omitempty"`
+	Meta         string    `json:"meta,omitempty"`
+	Version      int64     `json:"version,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at,omitempty"`
+}
+
+// Create stores a new secret on the server and returns its first version
+func (c *Client) Create(ctx context.Context, secretType, name string, data []byte, meta string) (Secret, error) {
+	in := Secret{Type: secretType, Name: name, Data: data, Meta: meta}
+	var out Secret
+	if err := c.doJSON(ctx, http.MethodPost, "/api/secrets", in, &out); err != nil {
+		return Secret{}, err
+	}
+	return out, nil
+}
+
+// List returns every version of every secret owned by the caller
+func (c *Client) List(ctx context.Context) ([]Secret, error) {
+	var out struct {
+		Items []Secret `json:"items"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, "/api/secrets", nil, &out); err != nil {
+		return nil, err
+	}
+	return out.Items, nil
+}
+
+// Delete removes every version of the logical secret with the given id
+func (c *Client) Delete(ctx context.Context, id string) error {
+	return c.doJSON(ctx, http.MethodDelete, "/api/secrets/"+id, nil, nil)
+}
+
+func (c *Client) doJSON(ctx context.Context, method, path string, in, out any) error {
+	var body io.Reader
+	if in != nil {
+		buf, err := json.Marshal(in)
+		if err != nil {
+			return err
+		}
+		body = bytes.NewReader(buf)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.base+path, body)
+	if err != nil {
+		return err
+	}
+	if in != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
+		if out == nil || resp.StatusCode == http.StatusNoContent {
+			return nil
+		}
+		return json.NewDecoder(resp.Body).Decode(out)
+	case http.StatusUnauthorized:
+		return ErrUnauthorized
+	case http.StatusNotFound:
+		return ErrNotFound
+	case http.StatusConflict:
+		return ErrConflict
+	default:
+		return unexpectedStatus(resp)
+	}
 }
