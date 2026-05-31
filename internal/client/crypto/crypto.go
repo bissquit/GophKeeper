@@ -1,9 +1,4 @@
 // Package crypto implements client-side payload encryption for GophKeeper
-//
-// Plaintext payloads never leave the client. The master password is
-// transformed into a 32-byte AES key via argon2id, then payloads are sealed
-// with AES-256-GCM. The salt is deterministic (sha256 of the user's login)
-// so the same password yields the same key across logins on any device
 package crypto
 
 import (
@@ -24,8 +19,6 @@ const KeySize = 32
 var ErrCiphertextTooShort = errors.New("ciphertext too short")
 
 // DeriveKey returns a 32-byte AES key derived from the master password
-//
-// Parameters intentionally favor simplicity over peak security
 func DeriveKey(masterPassword, login string) []byte {
 	saltSum := sha256.Sum256([]byte("gophkeeper:" + login))
 	return argon2.IDKey([]byte(masterPassword), saltSum[:], 1, 64*1024, 4, KeySize)
