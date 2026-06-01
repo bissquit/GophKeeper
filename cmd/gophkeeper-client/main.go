@@ -338,14 +338,19 @@ func cmdDelete() error {
 	return nil
 }
 
-// latestByName returns the highest-version Secret with the given name
+// latestByName returns the most recent Secret with the given name
 func latestByName(items []api.Secret, name string) (api.Secret, bool) {
 	var (
 		best  api.Secret
 		found bool
 	)
 	for _, s := range items {
-		if s.Name == name && (!found || s.Version > best.Version) {
+		if s.Name != name {
+			continue
+		}
+		if !found ||
+			s.Version > best.Version ||
+			(s.Version == best.Version && s.UpdatedAt.After(best.UpdatedAt)) {
 			best, found = s, true
 		}
 	}
