@@ -94,11 +94,33 @@ func (s *PGStorage) CreateSecret(ctx context.Context, userID string, in reposito
 	return out, nil
 }
 
-// AppendSecretVersion inserts a new version row for an existing logical secret
+// appendVersionMaxAttempts caps the retry loop in AppendSecretVersion
+const appendVersionMaxAttempts = 5
+
+// AppendSecretVersion inserts a new version row for an existing logical secret.
+//
+// handle rare case when user tries to update secret at the same time. Return
+// UniqueViolation (because UNIQUE (id, version)) when it happens and then next try.
+// In worst case we'll receive 'contention' error - not a tragedy
 func (s *PGStorage) AppendSecretVersion(ctx context.Context, userID, id string, data []byte, meta string) (repository.Secret, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
+	for attempt := 0; attempt < appendVersionMaxAttempts; attempt++ {
+		out, err := s.appendVersionOnce(ctx, userID, id, data, meta)
+		if err == nil {
+			return out, nil
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			continue
+		}
+		return repository.Secret{}, err
+	}
+	return repository.Secret{}, fmt.Errorf("append version: contention after %d attempts", appendVersionMaxAttempts)
+}
+
+func (s *PGStorage) appendVersionOnce(ctx context.Context, userID, id string, data []byte, meta string) (repository.Secret, error) {
 	out := repository.Secret{ID: id, UserID: userID, Data: data, Meta: meta}
 	var t string
 	err := s.pool.QueryRow(ctx,
