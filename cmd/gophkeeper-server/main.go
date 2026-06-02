@@ -14,8 +14,6 @@ import (
 	"github.com/bissquit/gophkeeper/internal/config"
 	"github.com/bissquit/gophkeeper/internal/repository/db"
 	"github.com/bissquit/gophkeeper/internal/server"
-	"github.com/bissquit/gophkeeper/migrations"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -30,14 +28,14 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := initDatabase(ctx, cfg, logger)
+	stg, err := db.Open(ctx, cfg.DSN)
 	if err != nil {
-		logger.Error("failed to initialize database", "err", err)
+		logger.Error("storage init failed", "err", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
+	defer stg.Close()
+	logger.Info("storage ready")
 
-	stg := db.NewDBStorage(pool)
 	srv := server.NewServer(cfg, stg, logger)
 
 	httpSrv := &http.Server{
@@ -65,26 +63,4 @@ func main() {
 	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("shutdown error", "err", err)
 	}
-}
-
-func initDatabase(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*pgxpool.Pool, error) {
-	if cfg.DSN == "" {
-		return nil, errors.New("DATABASE_URI (or -d) is required")
-	}
-
-	dbCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	pool, err := pgxpool.New(dbCtx, cfg.DSN)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := migrations.InitializeDB(cfg.DSN); err != nil {
-		pool.Close()
-		return nil, err
-	}
-
-	logger.Info("database connected")
-	return pool, nil
 }

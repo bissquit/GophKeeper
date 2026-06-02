@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bissquit/gophkeeper/internal/repository"
+	"github.com/bissquit/gophkeeper/migrations"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -19,9 +20,32 @@ type PGStorage struct {
 	pool *pgxpool.Pool
 }
 
-// NewDBStorage returns PGStorage object
-func NewDBStorage(p *pgxpool.Pool) *PGStorage {
-	return &PGStorage{pool: p}
+// Open creates a connection pool, applies pending migrations, and returns a
+// ready-to-use PGStorage. The caller must Close the returned storage
+func Open(ctx context.Context, dsn string) (*PGStorage, error) {
+	if dsn == "" {
+		return nil, errors.New("DSN is required")
+	}
+
+	connectCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(connectCtx, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("connect: %w", err)
+	}
+
+	if err := migrations.InitializeDB(dsn); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
+
+	return &PGStorage{pool: pool}, nil
+}
+
+// Close releases the underlying connection pool
+func (s *PGStorage) Close() {
+	s.pool.Close()
 }
 
 // Ping verifies the connection pool can reach Postgres
