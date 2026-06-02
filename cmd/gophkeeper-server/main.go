@@ -38,7 +38,7 @@ func main() {
 	defer pool.Close()
 
 	stg := db.NewDBStorage(pool)
-	srv := server.NewServer(cfg, stg, pool, logger)
+	srv := server.NewServer(cfg, stg, logger)
 
 	httpSrv := &http.Server{
 		Addr:         cfg.ServerAddr,

@@ -27,6 +27,8 @@ func (r *fakeRepo) nextID(prefix string) string {
 	return fmt.Sprintf("%s-%d", prefix, r.next)
 }
 
+func (r *fakeRepo) Ping(_ context.Context) error { return nil }
+
 func (r *fakeRepo) CreateUser(_ context.Context, login, passwordHash string) (string, error) {
 	if _, ok := r.users[login]; ok {
 		return "", repository.ErrUserAlreadyExists

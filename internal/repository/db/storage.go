@@ -24,6 +24,13 @@ func NewDBStorage(p *pgxpool.Pool) *PGStorage {
 	return &PGStorage{pool: p}
 }
 
+// Ping verifies the connection pool can reach Postgres
+func (s *PGStorage) Ping(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+	return s.pool.Ping(ctx)
+}
+
 // CreateUser inserts a new user and returns its UUID
 func (s *PGStorage) CreateUser(ctx context.Context, login, passwordHash string) (userID string, err error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)

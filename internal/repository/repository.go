@@ -60,6 +60,9 @@ type NewSecret struct {
 
 // Repository is the contract that any concrete storage backend must satisfy
 type Repository interface {
+	// Ping verifies the storage is reachable
+	Ping(ctx context.Context) error
+
 	CreateUser(ctx context.Context, login, passwordHash string) (userID string, err error)
 	GetUserByLogin(ctx context.Context, login string) (user User, err error)
 

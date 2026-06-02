@@ -14,32 +14,31 @@ import (
 	"github.com/bissquit/gophkeeper/internal/repository"
 	"github.com/bissquit/gophkeeper/internal/service"
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Server bundles the chi router with the dependencies it needs at request time
 type Server struct {
-	router *chi.Mux
-	db     *pgxpool.Pool
-	logger *slog.Logger
+	router  *chi.Mux
+	storage repository.Repository
+	logger  *slog.Logger
 }
 
 // NewServer constructs a Server and registers all routes
-func NewServer(cfg *config.Config, storage repository.Repository, db *pgxpool.Pool, logger *slog.Logger) *Server {
+func NewServer(cfg *config.Config, storage repository.Repository, logger *slog.Logger) *Server {
 	s := &Server{
-		router: chi.NewRouter(),
-		db:     db,
-		logger: logger,
+		router:  chi.NewRouter(),
+		storage: storage,
+		logger:  logger,
 	}
-	s.setupRoutes(cfg, storage)
+	s.setupRoutes(cfg)
 	return s
 }
 
-func (s *Server) setupRoutes(cfg *config.Config, storage repository.Repository) {
+func (s *Server) setupRoutes(cfg *config.Config) {
 	secret := []byte(cfg.JWTSecret)
 
-	authSvc := service.NewAuth(storage, secret)
-	secretsSvc := service.NewSecrets(storage)
+	authSvc := service.NewAuth(s.storage, secret)
+	secretsSvc := service.NewSecrets(s.storage)
 	h := handler.NewHandlers(authSvc, secretsSvc, s.logger)
 
 	s.router.Use(logging.Logger(s.logger))
@@ -57,13 +56,13 @@ func (s *Server) setupRoutes(cfg *config.Config, storage repository.Repository) 
 	})
 }
 
-// Ping is a liveness/readiness probe that also verifies DB connectivity
+// Ping is a liveness/readiness probe that also verifies storage reachability
 func (s *Server) Ping(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 1*time.Second)
 	defer cancel()
 
-	if err := s.db.Ping(ctx); err != nil {
-		s.logger.Error("db ping failed", "err", err)
+	if err := s.storage.Ping(ctx); err != nil {
+		s.logger.Error("storage ping failed", "err", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
