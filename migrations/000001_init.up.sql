@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     login VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS secrets (
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS secrets (
     data BYTEA NOT NULL,
     meta VARCHAR(4096) NOT NULL DEFAULT '',
     version BIGINT NOT NULL,
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (id, version)
 );
 
