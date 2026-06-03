@@ -58,6 +58,10 @@ func main() {
 		os.Exit(2)
 	}
 
+	// single buffered reader shared across all prompts so successive non-TTY
+	// reads see consecutive lines instead of an empty buffer
+	in := bufio.NewReader(os.Stdin)
+
 	var err error
 	switch os.Args[1] {
 	case "version":
@@ -68,9 +72,9 @@ func main() {
 			fmt.Println("ok")
 		}
 	case "register":
-		err = cmdRegister()
+		err = cmdRegister(in)
 	case "login":
-		err = cmdLogin()
+		err = cmdLogin(in)
 	case "logout":
 		if err = session.Clear(); err == nil {
 			fmt.Println("logged out")
@@ -78,11 +82,11 @@ func main() {
 	case "whoami":
 		err = cmdWhoami()
 	case "add":
-		err = cmdAdd()
+		err = cmdAdd(in)
 	case "list":
 		err = cmdList()
 	case "get":
-		err = cmdGet()
+		err = cmdGet(in)
 	case "delete":
 		err = cmdDelete()
 	default:
@@ -96,12 +100,12 @@ func main() {
 	}
 }
 
-func cmdRegister() error {
+func cmdRegister(in *bufio.Reader) error {
 	if len(os.Args) < 3 {
 		return errors.New("usage: gophkeeper register <login>")
 	}
 	login := os.Args[2]
-	password, err := readPassword()
+	password, err := readPassword(in)
 	if err != nil {
 		return err
 	}
@@ -119,12 +123,12 @@ func cmdRegister() error {
 	return nil
 }
 
-func cmdLogin() error {
+func cmdLogin(in *bufio.Reader) error {
 	if len(os.Args) < 3 {
 		return errors.New("usage: gophkeeper login <login>")
 	}
 	login := os.Args[2]
-	password, err := readPassword()
+	password, err := readPassword(in)
 	if err != nil {
 		return err
 	}
@@ -173,7 +177,7 @@ type cardPayload struct {
 	Holder string `json:"holder,omitempty"`
 }
 
-func cmdAdd() error {
+func cmdAdd(in *bufio.Reader) error {
 	if len(os.Args) < 4 {
 		return errors.New("usage: gophkeeper add <credentials|text|binary|card> NAME [flags]")
 	}
@@ -181,7 +185,7 @@ func cmdAdd() error {
 	name := os.Args[3]
 	rest := os.Args[4:]
 
-	sess, key, err := openSession()
+	sess, key, err := openSession(in)
 	if err != nil {
 		return err
 	}
@@ -201,7 +205,7 @@ func cmdAdd() error {
 			return err
 		}
 		if *password == "" {
-			p, err := readPasswordPrompt("Secret password: ")
+			p, err := readPasswordPrompt(in, "Secret password: ")
 			if err != nil {
 				return err
 			}
@@ -226,7 +230,7 @@ func cmdAdd() error {
 		if *file == "" {
 			return errors.New("--file is required for binary")
 		}
-		b, err := readFileOrStdin(*file)
+		b, err := readFileOrStdin(in, *file)
 		if err != nil {
 			return err
 		}
@@ -288,12 +292,12 @@ func cmdList() error {
 	return tw.Flush()
 }
 
-func cmdGet() error {
+func cmdGet(in *bufio.Reader) error {
 	if len(os.Args) < 3 {
 		return errors.New("usage: gophkeeper get NAME")
 	}
 	name := os.Args[2]
-	sess, key, err := openSession()
+	sess, key, err := openSession(in)
 	if err != nil {
 		return err
 	}
@@ -403,44 +407,34 @@ func printPayload(s api.Secret, plaintext []byte) error {
 
 // openSession loads the session and prompts for the master password,
 // returning the derived AES key alongside
-func openSession() (*session.Session, []byte, error) {
+func openSession(in *bufio.Reader) (*session.Session, []byte, error) {
 	sess, err := session.Load()
 	if err != nil {
 		return nil, nil, err
 	}
-	mp, err := readPasswordPrompt("Master password: ")
+	mp, err := readPasswordPrompt(in, "Master password: ")
 	if err != nil {
 		return nil, nil, err
 	}
 	return sess, crypto.DeriveKey(mp, sess.Login), nil
 }
 
-func readFileOrStdin(path string) ([]byte, error) {
+func readFileOrStdin(in *bufio.Reader, path string) ([]byte, error) {
 	if path == "-" {
-		if stdinReader != nil {
-			return io.ReadAll(stdinReader)
-		}
-		return io.ReadAll(os.Stdin)
+		return io.ReadAll(in)
 	}
 	return os.ReadFile(path)
 }
 
-func readPassword() (string, error) {
-	return readPasswordPrompt("Password: ")
+func readPassword(in *bufio.Reader) (string, error) {
+	return readPasswordPrompt(in, "Password: ")
 }
 
-// stdinReader is shared across prompts so successive non-TTY reads
-// see consecutive lines instead of an empty buffer
-var stdinReader *bufio.Reader
-
-func readPasswordPrompt(prompt string) (string, error) {
+func readPasswordPrompt(in *bufio.Reader, prompt string) (string, error) {
 	fd := int(os.Stdin.Fd())
 	// don't disable echo if not tty (e.g. file or pipe)
 	if !term.IsTerminal(fd) {
-		if stdinReader == nil {
-			stdinReader = bufio.NewReader(os.Stdin)
-		}
-		line, err := stdinReader.ReadString('\n')
+		line, err := in.ReadString('\n')
 		if err != nil && line == "" {
 			return "", err
 		}
