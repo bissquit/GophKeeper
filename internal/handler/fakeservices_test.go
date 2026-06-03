@@ -67,7 +67,7 @@ func (s *fakeSecrets) Create(_ context.Context, userID string, in repository.New
 	if userID == "" || in.Name == "" {
 		return repository.Secret{}, service.ErrInvalidInput
 	}
-	if !isValidSecretType(in.Type) {
+	if !service.IsValidSecretType(in.Type) {
 		return repository.Secret{}, service.ErrInvalidSecretType
 	}
 	s.next++
@@ -156,15 +156,4 @@ func (s *fakeSecrets) Delete(_ context.Context, userID, id string) error {
 	}
 	s.items = out
 	return nil
-}
-
-func isValidSecretType(t repository.SecretType) bool {
-	switch t {
-	case repository.SecretTypeCredentials,
-		repository.SecretTypeText,
-		repository.SecretTypeBinary,
-		repository.SecretTypeCard:
-		return true
-	}
-	return false
 }

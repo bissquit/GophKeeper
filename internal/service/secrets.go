@@ -26,7 +26,7 @@ func (s *Secrets) Create(ctx context.Context, userID string, in repository.NewSe
 	if userID == "" || in.Name == "" {
 		return repository.Secret{}, ErrInvalidInput
 	}
-	if !isValidSecretType(in.Type) {
+	if !IsValidSecretType(in.Type) {
 		return repository.Secret{}, ErrInvalidSecretType
 	}
 	return s.repo.CreateSecret(ctx, userID, in)
@@ -56,7 +56,8 @@ func (s *Secrets) Delete(ctx context.Context, userID, id string) error {
 	return s.repo.DeleteSecret(ctx, userID, id)
 }
 
-func isValidSecretType(t repository.SecretType) bool {
+// IsValidSecretType reports whether t is one of the supported secret kinds
+func IsValidSecretType(t repository.SecretType) bool {
 	switch t {
 	case repository.SecretTypeCredentials,
 		repository.SecretTypeText,
