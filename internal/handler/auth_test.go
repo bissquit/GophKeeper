@@ -44,9 +44,6 @@ func TestRegister_OK(t *testing.T) {
 	if resp["token"] == "" {
 		t.Fatal("empty token in response")
 	}
-	if w.Header().Get("Authorization") == "" {
-		t.Fatal("missing Authorization header")
-	}
 }
 
 func TestRegister_DuplicateLogin(t *testing.T) {

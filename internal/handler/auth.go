@@ -70,6 +70,5 @@ func (h *Handlers) writeAuthError(w http.ResponseWriter, op string, err error) {
 }
 
 func writeToken(w http.ResponseWriter, token string) {
-	w.Header().Set("Authorization", "Bearer "+token)
 	writeJSON(w, http.StatusOK, map[string]string{"token": token})
 }
