@@ -45,10 +45,10 @@ func main() {
 		WriteTimeout: 5 * time.Second,
 	}
 
-	logger.Info("server starting", "addr", cfg.ServerAddr)
+	logger.Info("server starting", "addr", cfg.ServerAddr, "tls", true)
 
 	go func() {
-		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := httpSrv.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("server error", "err", err)
 			stop()
 		}

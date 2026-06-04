@@ -34,6 +34,8 @@ func TestGetConfig_EnvApplied(t *testing.T) {
 	t.Setenv("RUN_ADDRESS", ":9999")
 	t.Setenv("DATABASE_URI", "postgres://x")
 	t.Setenv("JWT_SECRET", "supersecret")
+	t.Setenv("TLS_CERT_FILE", "/tmp/cert.pem")
+	t.Setenv("TLS_KEY_FILE", "/tmp/key.pem")
 
 	cfg, err := GetConfig()
 	if err != nil {
@@ -41,6 +43,19 @@ func TestGetConfig_EnvApplied(t *testing.T) {
 	}
 	if cfg.ServerAddr != ":9999" || cfg.DSN != "postgres://x" || cfg.JWTSecret != "supersecret" {
 		t.Fatalf("unexpected cfg: %+v", cfg)
+	}
+	if cfg.TLSCertFile != "/tmp/cert.pem" || cfg.TLSKeyFile != "/tmp/key.pem" {
+		t.Fatalf("unexpected TLS paths: %+v", cfg)
+	}
+}
+
+func TestGetConfig_MissingTLS(t *testing.T) {
+	resetFlags(t)
+	t.Setenv("JWT_SECRET", "s")
+	t.Setenv("TLS_CERT_FILE", "")
+	t.Setenv("TLS_KEY_FILE", "")
+	if _, err := GetConfig(); !errors.Is(err, ErrMissingTLS) {
+		t.Fatalf("expected ErrMissingTLS, got %v", err)
 	}
 }
 

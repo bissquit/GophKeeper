@@ -4,11 +4,14 @@ package api
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -28,13 +31,32 @@ type Client struct {
 	token string
 }
 
-// New builds a Client targeting base URL with optional bearer token
 func New(base, token string) *Client {
 	return &Client{
 		base:  base,
-		http:  &http.Client{Timeout: 10 * time.Second},
+		http:  newHTTPClient(),
 		token: token,
 	}
+}
+
+func newHTTPClient() *http.Client {
+	c := &http.Client{Timeout: 10 * time.Second}
+	caPath := os.Getenv("GOPHKEEPER_CA")
+	if caPath == "" {
+		return c
+	}
+	pem, err := os.ReadFile(caPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "warning: cannot read GOPHKEEPER_CA:", err)
+		return c
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		fmt.Fprintln(os.Stderr, "warning: GOPHKEEPER_CA contains no valid certificates")
+		return c
+	}
+	c.Transport = &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool}}
+	return c
 }
 
 type authResponse struct {
