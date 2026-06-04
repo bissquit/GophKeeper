@@ -75,7 +75,15 @@ gophkeeper delete gmail
 ## Тесты
 
 ```bash
+# быстрый прогон — только юнит-тесты
 go test ./...
-go test -coverpkg=./internal/... -coverprofile=cov.out ./...
+
+# с интеграционными (поднимает Postgres-контейнер через testcontainers-go)
+go test -tags=integration ./...
+
+# покрытие
+go test -tags=integration -coverpkg=./internal/... -coverprofile=cov.out ./...
 go tool cover -func=cov.out | tail -1
 ```
+
+Интеграционные тесты для `internal/repository/db` помечены `//go:build integration`, в обычный прогон не попадают.
